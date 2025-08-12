@@ -1,0 +1,86 @@
+library(MASS)
+library(tidyverse)
+
+# Replica Synthetic Dataset 1 (SD1) dal paper
+# Case of Aleatoric Uncertainty
+
+generate_synthetic_dataset_1 <- function(n_samples = 100) {
+  set.seed(42)
+  
+  # Parameters per le 4 distribuzioni (dal paper)
+  # G=0, Y=0: Beta distribution
+  # G=0, Y=1: -Beta distribution  
+  # G=1, Y=0: Normal distribution
+  # G=1, Y=1: Normal distribution
+  
+  data_list <- list()
+  
+  # G=0, Y=0 - Beta distribution
+  n <- n_samples
+  beta_samples <- matrix(rbeta(n*2, 0.5, 0.5), ncol=2)
+  data_list[[1]] <- data.frame(
+    feature1 = beta_samples[,1],  # Scale to match paper
+    feature2 = beta_samples[,2],
+    G = 0, Y = 0
+  )
+  
+  # G=0, Y=1 - Negative Beta
+  data_list[[2]] <- data.frame(
+    feature1 = -(beta_samples[,1]),
+    feature2 = -(beta_samples[,2]),
+    G = 0, Y = 1
+  )
+  
+  # G=1, Y=0 - Normal distribution
+  normal_samples_0 <- mvrnorm(n, mu = c(-7, -7), 
+                              Sigma = matrix(c(15, 10, 10, 15), 2, 2))
+  data_list[[3]] <- data.frame(
+    feature1 = normal_samples_0[,1],
+    feature2 = normal_samples_0[,2],
+    G = 1, Y = 0
+  )
+  
+  # G=1, Y=1 - Normal distribution
+  normal_samples_1 <- mvrnorm(n, mu = c(7, 7), 
+                              Sigma = matrix(c(15, 10, 10, 15), 2, 2))
+  data_list[[4]] <- data.frame(
+    feature1 = normal_samples_1[,1],
+    feature2 = normal_samples_1[,2],
+    G = 1, Y = 1
+  )
+  
+  # Combine all data
+  synthetic_data <- do.call(rbind, data_list)
+  synthetic_data$G <- as.factor(synthetic_data$G)
+  synthetic_data$Y <- as.factor(synthetic_data$Y)
+  
+  return(synthetic_data)
+}
+
+# Test the function
+sd1_data <- generate_synthetic_dataset_1()
+head(sd1_data)
+table(sd1_data$G, sd1_data$Y)
+
+### VISUALIZZAZIONE GRAFICA
+
+plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
+  ggplot(data, aes(x = feature1, y = feature2, 
+                   color = interaction(G, Y), 
+                   shape = interaction(G, Y))) +
+    geom_point(size = 2, alpha = 0.7) +
+    scale_color_manual(values = c("red", "blue", "green", "orange"),
+                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+    scale_shape_manual(values = c(16, 17, 15, 18),
+                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+    labs(title = title, 
+         x = "Feature 1", 
+         y = "Feature 2",
+         color = "Group-Label",
+         shape = "Group-Label") +
+    theme_minimal()
+}
+
+p1 <- plot_synthetic_data(sd1_data, "Synthetic Dataset 1 - Aleatoric Uncertainty Case")
+ggsave("plots/synthetic_dataset_1.png", p1, width = 10, height = 6)
+
