@@ -1,0 +1,26 @@
+---
+title: "Main analysis"
+author: "me medesimo"
+date: "2025-08-20"
+output: html_document
+---
+
+```{r setup}
+source("ensemble.R")
+source("fairness.R")
+source("uncertainties.R")
+source("data/syntethic_datasets/01_synthetic_data.R")
+```
+
+```{r}
+# Prepara train/test split
+set.seed(123)
+train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
+train_data <- sd1_data[train_indices, ]
+test_data <- sd1_data[-train_indices, ]
+```
+
+```{r}
+ensemble_models <- create_uncertainty_ensemble(train_data, 'Y')
+```
+
