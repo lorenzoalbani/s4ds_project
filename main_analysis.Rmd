@@ -24,3 +24,10 @@ test_data <- sd1_data[-train_indices, ]
 ensemble_models <- create_uncertainty_ensemble(train_data, 'Y')
 ```
 
+```{r}
+uncertainties <- calculate_uncertainties(ensemble_models, test_data)
+```
+
+```{r}
+fairness <- calculate_fairness_measures(uncertainties, sensitive_attr)
+```
