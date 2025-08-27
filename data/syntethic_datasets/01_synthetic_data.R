@@ -82,5 +82,6 @@ plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
 }
 
 p1 <- plot_synthetic_data(sd1_data, "Synthetic Dataset 1 - Aleatoric Uncertainty Case")
+print(p1)
 ggsave("plots/synthetic_dataset_1.png", p1, width = 10, height = 6)
 
