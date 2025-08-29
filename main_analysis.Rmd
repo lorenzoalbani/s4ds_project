@@ -20,14 +20,36 @@ train_data <- sd1_data[train_indices, ]
 test_data <- sd1_data[-train_indices, ]
 ```
 
+
+
 ```{r}
 ensemble_models <- create_uncertainty_ensemble(train_data, 'Y')
 ```
+
+group_accuracies <- calculate_group_accuracy(ensemble_models, test_data, sensitive_attr = "G")
+
+print(group_accuracies)
+
+preds <- predict(ensemble_models[[1]], test_data)
+table(preds, test_data$G)
+
 
 ```{r}
 uncertainties <- calculate_uncertainties(ensemble_models, test_data)
 ```
 
 ```{r}
-fairness <- calculate_fairness_measures(uncertainties, sensitive_attr)
+classification_metrics <- calculate_classification_metrics(ensemble_models, test_data)
 ```
+
+sensitive_attr <- test_data$G
+
+```{r}
+# fairness <- calculate_fairness_measures(uncertainties, sensitive_attr)
+fairness_epistemic <- calculate_fairness_measures(uncertainties$epistemic, sensitive_attr)
+fairness_aleatoric <- calculate_fairness_measures(uncertainties$aleatoric, sensitive_attr)
+fairness_predictive <- calculate_fairness_measures(uncertainties$predictive, sensitive_attr)
+
+```
+
+
