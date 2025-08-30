@@ -25,61 +25,58 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
   return(models)
 }
 
-calculate_group_accuracy <- function(models, test_data, sensitive_attr) {
+
+calculate_group_metrics <- function(models, test_data, sensitive_attr) {
   groups <- unique(test_data[[sensitive_attr]])
   
   results <- data.frame(
     Group = character(),
     Accuracy = numeric(),
+    TPR = numeric(),
+    TNR = numeric(),
+    FPR = numeric(),
+    FNR = numeric(),
     stringsAsFactors = FALSE
   )
   
   for (group in groups) {
     group_data <- test_data[test_data[[sensitive_attr]] == group, ]
     
-    accuracies <- sapply(models, function(model) {
-      preds <- predict(model, group_data)
-      mean(preds == group_data$Y)
+    # Media delle predizioni dei modelli (voting ensemble)
+    preds_matrix <- sapply(models, function(model) {
+      predict(model, group_data)
     })
+    
+    # Majority vote
+    final_preds <- apply(preds_matrix, 1, function(row) {
+      names(sort(table(row), decreasing = TRUE))[1]
+    })
+    
+    # Confusion matrix components
+    actuals <- group_data$Y
+    TP <- sum(final_preds == 1 & actuals == 1)
+    TN <- sum(final_preds == 0 & actuals == 0)
+    FP <- sum(final_preds == 1 & actuals == 0)
+    FN <- sum(final_preds == 0 & actuals == 1)
+    
+    # Metriche
+    accuracy <- mean(final_preds == actuals)
+    tpr <- ifelse((TP + FN) > 0, TP / (TP + FN), NA)
+    tnr <- ifelse((TN + FP) > 0, TN / (TN + FP), NA)
+    fpr <- ifelse((FP + TN) > 0, FP / (FP + TN), NA)
+    fnr <- ifelse((FN + TP) > 0, FN / (FN + TP), NA)
     
     results <- rbind(results, data.frame(
       Group = as.character(group),
-      Accuracy = mean(accuracies)
+      Accuracy = round(accuracy, 2),
+      TPR = round(tpr, 2),
+      TNR = round(tnr, 2),
+      FPR = round(fpr, 2),
+      FNR = round(fnr, 2)
     ))
   }
   
   return(results)
 }
 
-
-calculate_classification_metrics <- function(models, test_data, target_col = "Y", threshold = 0.5) {
-  predictions_list <- lapply(models, function(model) {
-    predict(model, test_data, type = "response")
-  })
-  
-  avg_predictions <- rowMeans(do.call(cbind, predictions_list))
-  predicted_classes <- ifelse(avg_predictions > threshold, 1, 0)
-  true_classes <- test_data[[target_col]]
-  
-  # Assicura che la tabella abbia tutti i livelli
-  conf_matrix <- table(factor(predicted_classes, levels = c(0, 1)),
-                       factor(true_classes, levels = c(0, 1)))
-  
-  TP <- conf_matrix["1", "1"]
-  TN <- conf_matrix["0", "0"]
-  FP <- conf_matrix["1", "0"]
-  FN <- conf_matrix["0", "1"]
-  
-  accuracy <- (TP + TN) / sum(conf_matrix)
-  TPR <- if ((TP + FN) > 0) TP / (TP + FN) else NA
-  TNR <- if ((TN + FP) > 0) TN / (TN + FP) else NA
-  
-  return(list(
-    Accuracy = accuracy,
-    True_Positive_Rate = TPR,
-    True_Negative_Rate = TNR,
-    False_Positive = FP,
-    False_Negative = FN
-  ))
-}
 

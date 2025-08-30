@@ -9,15 +9,16 @@ output: html_document
 source("ensemble.R")
 source("fairness.R")
 source("uncertainties.R")
-source("data/syntethic_datasets/01_synthetic_data.R")
+source("data/syntethic_datasets/02_synthetic_data.R")
+# adult_data <- read.csv("data/real_datasets/adult/adult.data", header = FALSE, strip.white = TRUE, na.strings = "?")
 ```
 
 ```{r}
 # Prepara train/test split
 set.seed(123)
 train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
-train_data <- sd1_data[train_indices, ]
-test_data <- sd1_data[-train_indices, ]
+train_data <- sd2_data[train_indices, ]
+test_data <- sd2_data[-train_indices, ]
 ```
 
 
@@ -26,21 +27,17 @@ test_data <- sd1_data[-train_indices, ]
 ensemble_models <- create_uncertainty_ensemble(train_data, 'Y')
 ```
 
-group_accuracies <- calculate_group_accuracy(ensemble_models, test_data, sensitive_attr = "G")
-
-print(group_accuracies)
-
-preds <- predict(ensemble_models[[1]], test_data)
-table(preds, test_data$G)
+group_metrics <- calculate_group_metrics(ensemble_models, test_data, sensitive_attr = "G")
+print(group_metrics)
 
 
 ```{r}
 uncertainties <- calculate_uncertainties(ensemble_models, test_data)
+fairness_measures <- calculate_uncertainty_fairness(uncertainties, test_data$G)
+print(fairness_measures)
 ```
 
-```{r}
-classification_metrics <- calculate_classification_metrics(ensemble_models, test_data)
-```
+print(uncertainties)
 
 sensitive_attr <- test_data$G
 
@@ -49,7 +46,10 @@ sensitive_attr <- test_data$G
 fairness_epistemic <- calculate_fairness_measures(uncertainties$epistemic, sensitive_attr)
 fairness_aleatoric <- calculate_fairness_measures(uncertainties$aleatoric, sensitive_attr)
 fairness_predictive <- calculate_fairness_measures(uncertainties$predictive, sensitive_attr)
-
 ```
+
+print(fairness_epistemic)
+print(fairness_aleatoric)
+print(fairness_predictive)
 
 
