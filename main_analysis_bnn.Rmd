@@ -7,6 +7,7 @@ output: html_document
 
 ```{r setup}
 source("bnn.R")
+source("ensemble.R")
 source("fairness.R")
 source("uncertainties.R")
 source("data/syntethic_datasets/01_synthetic_data.R")
@@ -25,28 +26,20 @@ test_data <- sd1_data[-train_indices, ]
 train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan richiede cosi
 train_data$y <- as.numeric(train_data$y)
 
-create_uncertainty_ensemble <- create_uncertainty_ensemble(train_data, 'y')
+uncertainty_bnn <- create_uncertainty_bnn(train_data, 'y')
 ```
-
+print(create_uncertainty_bnn)
 # metriche
-group_metrics <- calculate_group_metrics(ensemble_models, test_data, sensitive_attr = "G")
+group_metrics <- calculate_group_metrics(create_uncertainty_bnn, test_data, sensitive_attr = "G")
 print(group_metrics)
 
-calculate_group_accuracy <- calculate_group_accuracy(create_uncertainty_ensemble, test_data, sensitive_attr = "G")
-
-print(group_accuracies)
-
-preds <- predict(ensemble_models[[1]], test_data)
-table(preds, test_data$G)
-
 
 ```{r}
-uncertainties <- calculate_uncertainties(ensemble_models, test_data)
+uncertainties <- calculate_uncertainties(create_uncertainty_bnn, test_data)
+fairness_measures <- calculate_uncertainty_fairness(uncertainties, test_data$G)
+print(fairness_measures)
 ```
 
-```{r}
-classification_metrics <- calculate_classification_metrics(ensemble_models, test_data)
-```
 
 sensitive_attr <- test_data$G
 
