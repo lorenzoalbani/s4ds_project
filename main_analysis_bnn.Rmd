@@ -6,38 +6,47 @@ output: html_document
 ---
 
 ```{r setup}
-source("ensemble.R")
+source("bnn.R")
 source("fairness.R")
 source("uncertainties.R")
-source("data/syntethic_datasets/03_synthetic_data.R")
-# adult_data <- read.csv("data/real_datasets/adult/adult.data", header = FALSE, strip.white = TRUE, na.strings = "?")
+source("data/syntethic_datasets/01_synthetic_data.R")
 ```
 
 ```{r}
 # Prepara train/test split
 set.seed(123)
-train_indices <- sample(nrow(sd3_data), 0.8 * nrow(sd3_data))
-train_data <- sd3_data[train_indices, ]
-test_data <- sd3_data[-train_indices, ]
+train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
+train_data <- sd1_data[train_indices, ]
+test_data <- sd1_data[-train_indices, ]
 ```
-
 
 
 ```{r}
-ensemble_models <- create_uncertainty_ensemble(train_data, 'Y')
+train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan richiede cosi
+train_data$y <- as.numeric(train_data$y)
+
+create_uncertainty_ensemble <- create_uncertainty_ensemble(train_data, 'y')
 ```
 
+# metriche
 group_metrics <- calculate_group_metrics(ensemble_models, test_data, sensitive_attr = "G")
 print(group_metrics)
+
+calculate_group_accuracy <- calculate_group_accuracy(create_uncertainty_ensemble, test_data, sensitive_attr = "G")
+
+print(group_accuracies)
+
+preds <- predict(ensemble_models[[1]], test_data)
+table(preds, test_data$G)
 
 
 ```{r}
 uncertainties <- calculate_uncertainties(ensemble_models, test_data)
-fairness_measures <- calculate_uncertainty_fairness(uncertainties, test_data$G)
-print(fairness_measures)
 ```
 
-print(uncertainties)
+```{r}
+classification_metrics <- calculate_classification_metrics(ensemble_models, test_data)
+```
 
 sensitive_attr <- test_data$G
 
@@ -46,10 +55,7 @@ sensitive_attr <- test_data$G
 fairness_epistemic <- calculate_fairness_measures(uncertainties$epistemic, sensitive_attr)
 fairness_aleatoric <- calculate_fairness_measures(uncertainties$aleatoric, sensitive_attr)
 fairness_predictive <- calculate_fairness_measures(uncertainties$predictive, sensitive_attr)
-```
 
-print(fairness_epistemic)
-print(fairness_aleatoric)
-print(fairness_predictive)
+```
 
 
