@@ -36,9 +36,41 @@ accuracy_results <- calculate_ensemble_accuracy(uncertainty_bnn, test_data, 'y')
 ```
 
 ```{r}
-# metriche
-group_metrics <- calculate_group_accuracy(uncertainty_bnn, test_data, sensitive_attr = "G")
-print(group_metrics)
+# Assumendo che test_data contenga la variabile di gruppo 'G'
+# e che i valori siano 0/1 o, in generale, due livelli.
+# Se vuoi dichiarare esplicitamente minoranza/maggioranza, specifica levels_order = c("0", "1") o c("minority","majority")
+
+by_group_results <- calculate_ensemble_accuracy_by_group(
+  models = uncertainty_bnn,
+  test_data = test_data,
+  target_col = "y",
+  group_col = "G",
+  threshold = 1.5,
+  levels_order = c("0", "1")  # <-- stringhe, non numeri
+)
+
+
+# Stampa dei risultati
+by_group_results$individual_accuracies_by_group
+by_group_results$mean_individual_accuracy_by_group
+by_group_results$ensemble_accuracy_by_group
+by_group_results$F_EAcc
+```
+
+```{r}
+results <- calculate_ensemble_metrics_by_group(
+  models = uncertainty_bnn,
+  test_data = test_data,
+  target_col = "y",
+  group_col = "G", 
+  levels_order = c("0", "1"),
+  positive_class = 2
+)
+
+# Access results
+results$ensemble_metrics_by_group  # TPR, FPR, etc. by group
+results$fairness_measures          # All fairness ratios
+results$confusion_matrices         # TP, TN, FP, FN counts
 ```
 
 ```{r}
