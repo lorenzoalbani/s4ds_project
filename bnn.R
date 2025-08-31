@@ -2,7 +2,7 @@ library(bnns)  # Bayesian Neural Networks
 library(dplyr)
 
 # Funzione per creare ensemble che simula Monte Carlo sampling
-create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
+create_uncertainty_ensemble <- function(data, target_col, n_models = 2) {
   models <- list()
   
   # Crea formula dinamicamente
@@ -45,7 +45,7 @@ calculate_group_accuracy <- function(models, test_data, sensitive_attr) {
     # MODIFICATO: Monte Carlo sampling con BNN
     accuracies <- sapply(models, function(model) {
       # 10 campioni Monte Carlo dalla posteriore bayesiana
-      mc_preds <- replicate(10, predict(model, group_data, type = "response"))
+      mc_preds <- replicate(2, predict(model, group_data, type = "response"))
       avg_pred <- rowMeans(mc_preds)
       predicted_classes <- ifelse(avg_pred > 0.5, 1, 0)
       mean(predicted_classes == group_data$Y)
@@ -63,7 +63,7 @@ calculate_group_accuracy <- function(models, test_data, sensitive_attr) {
 calculate_classification_metrics <- function(models, test_data, target_col = "Y", threshold = 0.5) {
   # MODIFICATO: Monte Carlo sampling con BNN
   predictions_list <- lapply(models, function(model) {
-    mc_preds <- replicate(10, predict(model, test_data, type = "response"))
+    mc_preds <- replicate(2, predict(model, test_data, type = "response"))
     rowMeans(mc_preds)  # media dei 10 campioni MC
   })
   
@@ -110,7 +110,7 @@ calculate_uncertainties <- function(ensemble_models, test_data) {
   # MODIFICATO: Monte Carlo sampling con BNN  
   for(m in 1:M) {
     # 10 campioni Monte Carlo dalla posteriore bayesiana
-    mc_preds <- replicate(10, predict(ensemble_models[[m]], test_data, type = "response"))
+    mc_preds <- replicate(2, predict(ensemble_models[[m]], test_data, type = "response"))
     P_matrix[,m] <- rowMeans(mc_preds)  # media dei campioni MC
   }
   

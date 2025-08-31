@@ -7,7 +7,6 @@ output: html_document
 
 ```{r setup}
 source("bnn.R")
-source("ensemble.R")
 source("fairness.R")
 source("uncertainties.R")
 source("data/syntethic_datasets/01_synthetic_data.R")
@@ -15,7 +14,7 @@ source("data/syntethic_datasets/01_synthetic_data.R")
 
 ```{r}
 # Prepara train/test split
-set.seed(123)
+set.seed(42)
 train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
 train_data <- sd1_data[train_indices, ]
 test_data <- sd1_data[-train_indices, ]
@@ -25,14 +24,18 @@ test_data <- sd1_data[-train_indices, ]
 ```{r}
 train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan richiede cosi
 train_data$y <- as.numeric(train_data$y)
-
-uncertainty_bnn <- create_uncertainty_bnn(train_data, 'y')
+test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan
+test_data$y <- as.numeric(test_data$y)
+uncertainty_bnn <- create_uncertainty_ensemble(train_data, 'y')
 ```
-print(create_uncertainty_bnn)
-# metriche
-group_metrics <- calculate_group_metrics(create_uncertainty_bnn, test_data, sensitive_attr = "G")
-print(group_metrics)
 
+print(create_uncertainty_bnn)
+
+```{r}
+# metriche
+group_metrics <- calculate_group_accuracy(uncertainty_bnn, test_data, sensitive_attr = "y")
+print(group_metrics)
+```
 
 ```{r}
 uncertainties <- calculate_uncertainties(create_uncertainty_bnn, test_data)
