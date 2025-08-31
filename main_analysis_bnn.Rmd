@@ -28,6 +28,99 @@ test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto
 test_data$y <- as.numeric(test_data$y)
 uncertainty_bnn <- create_uncertainty_ensemble(train_data, 'y')
 ```
+<<<<<<< HEAD
+=======
+
+
+```{r}
+# Assicurati che la colonna 'y' sia numerica anche nel test set
+test_data$y <- as.numeric(test_data$y)
+
+# Seleziona il primo modello
+model <- uncertainty_bnn[[1]]
+
+# Seleziona un gruppo specifico, ad esempio G == 0
+group_data <- test_data[test_data$G == 0, ]
+
+# Seleziona solo le feature
+group_data_x <- group_data[, c("feature1", "feature2")]
+
+# Assicurati che siano numeriche
+group_data_x <- as.data.frame(lapply(group_data_x, as.numeric))
+
+print(group_data_x)
+
+# Etichette vere
+true_labels <- group_data$y
+
+# Prova una singola predizione Monte Carlo
+mc_preds <- replicate(10, predict(model, group_data_x, type = "response"))
+
+# Media delle predizioni
+avg_pred <- rowMeans(mc_preds)
+
+# Classi predette
+predicted_classes <- ifelse(avg_pred > 0.5, 1, 0)
+
+# Accuratezza
+accuracy <- mean(predicted_classes == true_labels)
+print(accuracy)
+
+
+# Seleziona il primo modello
+model <- uncertainty_bnn[[1]]
+
+# Recupera le feature usate nel training
+feature_names <- setdiff(names(model$data), "y")
+
+# Seleziona i dati del gruppo G == 0
+group_data <- test_data[test_data$G == 0, ]
+
+# Seleziona le feature coerenti
+group_data_x <- group_data[, feature_names]
+group_data_x <- as.data.frame(lapply(group_data_x, as.numeric))
+
+# Normalizzazione manuale con le statistiche del modello
+group_data_x_norm <- sweep(group_data_x, 2, model$x_mean, "-")
+group_data_x_norm <- sweep(group_data_x_norm, 2, model$x_sd, "/")
+
+# Etichette vere
+true_labels <- group_data$y
+
+# Predizione Monte Carlo
+mc_preds <- replicate(10, predict(model, group_data_x_norm, type = "response"))
+
+# Media delle predizioni
+avg_pred <- rowMeans(mc_preds)
+
+# Classi predette
+predicted_classes <- ifelse(avg_pred > 0.5, 1, 0)
+
+# Accuratezza
+accuracy <- mean(predicted_classes == true_labels)
+print(accuracy)
+
+
+
+feature_names <- c("feature1", "feature2")
+group_accuracy_results <- calculate_group_accuracy(
+  models = uncertainty_bnn,
+  test_data = test_data,
+  sensitive_attr = "G",
+  train_data = train_data,
+  target_col = "y"
+)
+
+
+# Visualizza i risultati
+print(group_accuracy_results)
+```
+
+print(create_uncertainty_bnn)
+# metriche
+group_metrics <- calculate_group_metrics(create_uncertainty_bnn, test_data, sensitive_attr = "G")
+print(group_metrics)
+>>>>>>> 0bb3afbde3d619bceed257cb33d05cde90f3be47
 
 print(create_uncertainty_bnn)
 

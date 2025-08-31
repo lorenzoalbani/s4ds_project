@@ -9,6 +9,7 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 2) {
   formula_str <- paste(target_col, "~ .")
   
   for(i in 1:n_models) {
+    cat("Training model", i, "of", n_models, "\n")
     # Bootstrap sampling (per aleatoric)
     boot_indices <- sample(nrow(data), nrow(data), replace = TRUE)
     boot_data <- data[boot_indices, ]
@@ -20,8 +21,8 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 2) {
     model <- bnns(
       formula = as.formula(formula_str),
       data = boot_data,
-      hidden_layers = sample(c(10, 20, 30), 1),  # varia architettura
-      epochs = sample(100:300, 1),               # varia training
+      hidden_layers = 10,  # varia architettura
+      epochs = 50,               # varia training
       seed = i
     )
     
@@ -30,8 +31,10 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 2) {
   return(models)
 }
 
-calculate_group_accuracy <- function(models, test_data, sensitive_attr) {
+
+calculate_group_accuracy <- function(models, test_data, sensitive_attr, train_data, target_col = "y") {
   groups <- unique(test_data[[sensitive_attr]])
+  feature_names <- setdiff(names(train_data), c(target_col, sensitive_attr))
   
   results <- data.frame(
     Group = character(),
@@ -41,14 +44,16 @@ calculate_group_accuracy <- function(models, test_data, sensitive_attr) {
   
   for (group in groups) {
     group_data <- test_data[test_data[[sensitive_attr]] == group, ]
+    true_labels <- group_data[[target_col]]
+    group_data_x <- group_data[, feature_names]
+    group_data_x <- as.data.frame(lapply(group_data_x, as.numeric))
     
-    # MODIFICATO: Monte Carlo sampling con BNN
     accuracies <- sapply(models, function(model) {
       # 10 campioni Monte Carlo dalla posteriore bayesiana
       mc_preds <- replicate(2, predict(model, group_data, type = "response"))
       avg_pred <- rowMeans(mc_preds)
       predicted_classes <- ifelse(avg_pred > 0.5, 1, 0)
-      mean(predicted_classes == group_data$Y)
+      mean(predicted_classes == true_labels)
     })
     
     results <- rbind(results, data.frame(
@@ -59,6 +64,23 @@ calculate_group_accuracy <- function(models, test_data, sensitive_attr) {
   
   return(results)
 }
+
+
+prepare_test_data <- function(train_data, test_data, target_col, sensitive_col) {
+  feature_names <- setdiff(names(train_data), c(target_col, sensitive_col))
+  
+  # Seleziona solo le feature
+  test_x <- test_data[, feature_names]
+  
+  # Assicurati che siano numeriche
+  test_x <- as.data.frame(lapply(test_x, as.numeric))
+  
+  return(test_x)
+}
+
+
+
+
 
 calculate_classification_metrics <- function(models, test_data, target_col = "Y", threshold = 0.5) {
   # MODIFICATO: Monte Carlo sampling con BNN
