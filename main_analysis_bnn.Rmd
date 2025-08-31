@@ -16,7 +16,7 @@ source("data/syntethic_datasets/03_synthetic_data.R")
 ```{r}
 # Prepara train/test split
 set.seed(42)
-train_indices <- sample(nrow(sd3_data), 0.8 * nrow(sd2_data))
+train_indices <- sample(nrow(sd3_data), 0.8 * nrow(sd3_data))
 train_data <- sd3_data[train_indices, ]
 test_data <- sd3_data[-train_indices, ]
 ```
