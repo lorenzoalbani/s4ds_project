@@ -2,7 +2,7 @@ library(bnns)  # Bayesian Neural Networks
 library(dplyr)
 
 # Funzione per creare ensemble che simula Monte Carlo sampling
-create_uncertainty_ensemble <- function(data, target_col, n_models = 2) {
+create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
   models <- list()
   
   # Crea formula dinamicamente
@@ -268,18 +268,35 @@ calculate_ensemble_metrics_by_group <- function(models,
   minority_metrics <- ens_lookup[[levels_order[1]]]
   majority_metrics <- ens_lookup[[levels_order[2]]]
   
-  # Fairness measures (Equations 23-26 from paper)
+  # Fairness measures following paper's equations (23-26)
+  
+  # Calculate prediction rates
+  pred_pos_minority <- (minority_metrics$tp + minority_metrics$fp) / 
+    sum(minority_metrics[c("tp", "tn", "fp", "fn")])
+  pred_pos_majority <- (majority_metrics$tp + majority_metrics$fp) / 
+    sum(majority_metrics[c("tp", "tn", "fp", "fn")])
+  
+  # Statistical Parity (Eq. 23): P(Ŷ=1|G=0) / P(Ŷ=1|G=1)
+  F_SP <- pred_pos_minority / pred_pos_majority
+  
+  # Equal Opportunity (Eq. 24): P(Ŷ=0|Y=1,G=0) / P(Ŷ=0|Y=1,G=1)
+  F_EOpp <- minority_metrics$fnr / majority_metrics$fnr
+  
+  # Equalized Odds (Eq. 25): P(Ŷ=1|Y=y,G=0) / P(Ŷ=1|Y=y,G=1)
+  # This should be calculated for both Y=0 and Y=1, here we use TPR (Y=1 case)
+  F_EOdd <- minority_metrics$tpr / majority_metrics$tpr
+  
+  # Equal Accuracy (Eq. 26): Acc(G=0) / Acc(G=1)
+  F_EAcc <- minority_metrics$accuracy / majority_metrics$accuracy
+  
   fairness_measures <- data.frame(
     minority = levels_order[1],
     majority = levels_order[2],
-    # Statistical Parity: P(Ŷ=1|G=0) / P(Ŷ=1|G=1)
-    F_SP = (minority_metrics$tp + minority_metrics$fp) / sum(minority_metrics[c("tp", "tn", "fp", "fn")]) /
-      ((majority_metrics$tp + majority_metrics$fp) / sum(majority_metrics[c("tp", "tn", "fp", "fn")])),
-    # Equal Opportunity: FNR(G=0) / FNR(G=1)
-    F_EOpp = minority_metrics$fnr / majority_metrics$fnr,
-    # Equal Accuracy: Acc(G=0) / Acc(G=1)
-    F_EAcc = minority_metrics$accuracy / majority_metrics$accuracy,
-    # Additional rate ratios
+    F_SP = F_SP,
+    F_EOpp = F_EOpp,
+    F_EOdd = F_EOdd,
+    F_EAcc = F_EAcc,
+    # Additional ratios for completeness
     TPR_ratio = minority_metrics$tpr / majority_metrics$tpr,
     TNR_ratio = minority_metrics$tnr / majority_metrics$tnr,
     FPR_ratio = minority_metrics$fpr / majority_metrics$fpr,
