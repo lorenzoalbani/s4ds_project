@@ -27,6 +27,9 @@ train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchet
 train_data$y <- as.numeric(train_data$y)
 test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan
 test_data$y <- as.numeric(test_data$y)
+
+# train_data$y <- ifelse(train_data$y == 1, 0, 1) # Conversozione da 1 2 a 0 1 perche libreria prende cosi
+
 uncertainty_bnn <- create_uncertainty_ensemble(train_data, 'y')
 ```
 
@@ -36,26 +39,26 @@ accuracy_results <- calculate_ensemble_accuracy(uncertainty_bnn, test_data, 'y')
 ```
 
 ```{r}
-# metriche
-group_metrics <- calculate_group_accuracy(uncertainty_bnn, test_data, sensitive_attr = "G")
-print(group_metrics)
+results <- calculate_ensemble_metrics_by_group(
+  models = uncertainty_bnn,
+  test_data = test_data,
+  target_col = "y",
+  group_col = "G", 
+  levels_order = c("0", "1"),
+  positive_class = 2
+)
+
+# Access results
+results$ensemble_metrics_by_group  # TPR, FPR, etc. by group
+results$fairness_measures          # All fairness ratios
+results$confusion_matrices         # TP, TN, FP, FN counts
 ```
 
 ```{r}
-uncertainties <- calculate_uncertainties(create_uncertainty_bnn, test_data)
+uncertainties <- calculate_uncertainties(uncertainty_bnn, test_data)
 fairness_measures <- calculate_uncertainty_fairness(uncertainties, test_data$G)
 print(fairness_measures)
 ```
 
-
-sensitive_attr <- test_data$G
-
-```{r}
-# fairness <- calculate_fairness_measures(uncertainties, sensitive_attr)
-fairness_epistemic <- calculate_fairness_measures(uncertainties$epistemic, sensitive_attr)
-fairness_aleatoric <- calculate_fairness_measures(uncertainties$aleatoric, sensitive_attr)
-fairness_predictive <- calculate_fairness_measures(uncertainties$predictive, sensitive_attr)
-
-```
 
 

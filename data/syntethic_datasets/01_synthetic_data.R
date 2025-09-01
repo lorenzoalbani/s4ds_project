@@ -27,7 +27,7 @@ generate_synthetic_dataset_1 <- function(n_samples = 100) {
   # G=0, Y=1 - Negative Beta
   data_list[[2]] <- data.frame(
     feature1 = -(beta_samples[,1]),
-    feature2 = -(beta_samples[,2]),
+    feature2 = (beta_samples[,2]),
     G = 0, Y = 1
   )
   
