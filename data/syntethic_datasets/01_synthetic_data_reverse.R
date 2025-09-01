@@ -21,14 +21,14 @@ generate_synthetic_dataset_1 <- function(n_samples = 100) {
   data_list[[1]] <- data.frame(
     feature1 = beta_samples[,1],  # Scale to match paper
     feature2 = beta_samples[,2],
-    G = 0, Y = 0
+    G = 0, Y = 1
   )
   
   # G=0, Y=1 - Negative Beta
   data_list[[2]] <- data.frame(
     feature1 = -(beta_samples[,1]),
-    feature2 = (beta_samples[,2]),
-    G = 0, Y = 1
+    feature2 = -(beta_samples[,2]),
+    G = 0, Y = 0
   )
   
   # G=1, Y=0 - Normal distribution
@@ -58,9 +58,9 @@ generate_synthetic_dataset_1 <- function(n_samples = 100) {
 }
 
 # Test the function
-sd1_data <- generate_synthetic_dataset_1()
-head(sd1_data)
-table(sd1_data$G, sd1_data$Y)
+sd1_data_reverse <- generate_synthetic_dataset_1()
+head(sd1_data_reverse)
+table(sd1_data_reverse$G, sd1_data_reverse$Y)
 
 ### VISUALIZZAZIONE GRAFICA
 
@@ -70,9 +70,9 @@ plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
                    shape = interaction(G, Y))) +
     geom_point(size = 2, alpha = 0.7) +
     scale_color_manual(values = c("red", "blue", "green", "orange"),
-                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+                       labels = c("G=1,Y=0", "G=0,Y=0", "G=0,Y=1", "G=1,Y=1")) +
     scale_shape_manual(values = c(16, 17, 15, 18),
-                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+                       labels = c("G=1,Y=0", "G=0,Y=0", "G=0,Y=1", "G=1,Y=1")) +
     labs(title = title, 
          x = "Feature 1", 
          y = "Feature 2",
@@ -81,7 +81,7 @@ plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
     theme_minimal()
 }
 
-p1 <- plot_synthetic_data(sd1_data, "Synthetic Dataset 1 - Aleatoric Uncertainty Case")
+p1 <- plot_synthetic_data(sd1_data_reverse, "Synthetic Dataset 1 - Aleatoric Uncertainty Case")
 print(p1)
 ggsave("plots/synthetic_dataset_1.png", p1, width = 10, height = 6)
 

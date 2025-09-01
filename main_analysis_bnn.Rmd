@@ -10,15 +10,15 @@ source("bnn.R")
 source("gigi_puzza.R")
 source("fairness.R")
 source("uncertainties.R")
-source("data/syntethic_datasets/03_synthetic_data.R")
+source("data/syntethic_datasets/01_synthetic_data.R")
 ```
 
 ```{r}
 # Prepara train/test split
 set.seed(42)
-train_indices <- sample(nrow(sd3_data), 0.8 * nrow(sd3_data))
-train_data <- sd3_data[train_indices, ]
-test_data <- sd3_data[-train_indices, ]
+train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
+train_data <- sd1_data[train_indices, ]
+test_data <- sd1_data[-train_indices, ]
 ```
 
 
@@ -27,6 +27,9 @@ train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchet
 train_data$y <- as.numeric(train_data$y)
 test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan
 test_data$y <- as.numeric(test_data$y)
+
+# train_data$y <- ifelse(train_data$y == 1, 0, 1) # Conversozione da 1 2 a 0 1 perche libreria prende cosi
+
 uncertainty_bnn <- create_uncertainty_ensemble(train_data, 'y')
 ```
 
