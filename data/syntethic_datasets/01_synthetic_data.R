@@ -70,9 +70,9 @@ plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
                    shape = interaction(G, Y))) +
     geom_point(size = 2, alpha = 0.7) +
     scale_color_manual(values = c("red", "blue", "green", "orange"),
-                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+                       labels = c("G=0,Y=1", "G=1,Y=0", "G=0,Y=0", "G=1,Y=1")) +
     scale_shape_manual(values = c(16, 17, 15, 18),
-                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+                       labels = c("G=0,Y=1", "G=1,Y=0", "G=0,Y=0", "G=1,Y=1")) +
     labs(title = title, 
          x = "Feature 1", 
          y = "Feature 2",

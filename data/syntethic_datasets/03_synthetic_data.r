@@ -57,9 +57,9 @@ plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
                    shape = interaction(G, Y))) +
     geom_point(size = 2, alpha = 0.7) +
     scale_color_manual(values = c("red", "blue", "green", "orange"),
-                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+                       labels = c("G=0,Y=0", "G=1,Y=0", "G=1,Y=1", "G=0,Y=1")) +
     scale_shape_manual(values = c(16, 17, 15, 18),
-                       labels = c("G=0,Y=0", "G=0,Y=1", "G=1,Y=0", "G=1,Y=1")) +
+                       labels = c("G=0,Y=0", "G=1,Y=0", "G=1,Y=1", "G=0,Y=1")) +
     labs(title = title, 
          x = "Feature 1", 
          y = "Feature 2",
@@ -71,3 +71,4 @@ plot_synthetic_data <- function(data, title = "Synthetic Dataset") {
 p3 <- plot_synthetic_data(sd3_data, "Synthetic Dataset 3 - Fair in Uncertainty, Unfair in Predictions")
 print(p3)
 ggsave("plots/synthetic_dataset_3.png", p3, width = 10, height = 6)
+
