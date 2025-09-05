@@ -1,0 +1,61 @@
+---
+title: "Untitled"
+author: "Lollo"
+date: "2025-09-01"
+output: html_document
+---
+
+```{r setup}
+# CAricamento funzioni e dati
+source("utils.R")
+source("data/syntethic_datasets/01_synthetic_data.R")
+```
+
+```{r}
+# Preparo train/test split
+set.seed(42)
+train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
+train_data <- sd1_data[train_indices, ]
+test_data <- sd1_data[-train_indices, ]
+```
+
+```{r}
+train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan richiede cosi
+train_data$y <- as.numeric(train_data$y)
+test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan
+test_data$y <- as.numeric(test_data$y)
+```
+
+```{r message=FALSE, warning=FALSE}
+# Training
+ensemble_models <- create_uncertainty_ensemble(train_data, 'y')
+```
+
+```{r}
+# BNN results
+results <- calculate_ensemble_metrics_by_group(
+  models = ensemble_models,
+  test_data = test_data,
+  target_col = "y",
+  group_col = "G", 
+  levels_order = c("0", "1"),
+  positive_class = 2
+)
+
+# Access results
+results$ensemble_metrics_by_group  # TPR, FPR, etc. by group
+results$fairness_measures          # All fairness ratios
+results$confusion_matrices         # TP, TN, FP, FN counts
+```
+
+```{r}
+# Calcolo uncertainty
+uncertainties <- calculate_uncertainties(ensemble_models, test_data)
+group_uncertainties <- calculate_group_uncertainties(uncertainties, sensitive_attr = "G")
+print(group_uncertainties)
+
+# Calcolo di uncertainty fairness
+fairness_ratios <- group_uncertainties[1, 2:4] / group_uncertainties[2, 2:4]
+print(fairness_ratios)
+```
+
