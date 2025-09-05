@@ -43,7 +43,152 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
   }
   return(models)
 }
+
+# Funzione per creare BNN per dataset sintetici secondo il paper
+create_uncertainty_bnn_2 <- function(data, target_col) {
+  
+  # Parametri specifici per dataset sintetici (Sezione 5.2 del paper)
+  hidden_layers <- NULL         # Nessun hidden layer
+  epochs <- 5                   # 5 epoche
+  batch_size <- 8               # batch size 8
+  n_monte_carlo <- 10           # T = 10 campioni Monte Carlo
+  
+  # Formula dinamica
+  formula_str <- paste(target_col, "~ .")
+  
+  cat("Training BNN for synthetic dataset with", epochs, "epochs\n")
+  
+  # Modello BNN con Bayes by Backprop
+  model <- bnns(
+    formula = as.formula(formula_str),
+    data = data,
+    hidden_layers = hidden_layers,
+    epochs = epochs,
+    prior_pi = 0.5,         # π = 0.5
+    prior_sigma1 = 0,       # σ₁ = 0
+    prior_sigma2 = 6,       # σ₂ = 6
+    lambda = 2000,          # λ = 2000
+    init_mu = 0,            # μ = 0
+    init_sigma = 1,         # σ = 1
+    early_stopping = TRUE,
+    verbose = TRUE
+  )
+  
+  return(model)
+}
 ####
+
+#### ACCURACY
+# Funzione semplice per calcolare accuracy media (viene usata in funz dopo)
+calculate_mean_accuracy <- function(models, test_data, target_col) {
+  
+  accuracies <- numeric(length(models))
+  
+  for(i in 1:length(models)) {
+    # Predizioni probabilistiche MC della BNN
+    preds_mc <- predict(models[[i]], newdata = test_data)
+    
+    # Media su tutti i campioni MC
+    probabilities <- rowMeans(preds_mc)
+    
+    # Converti in classi binarie
+    pred_classes <- ifelse(probabilities > 0.5, 1, 0)
+    
+    # Calcola accuracy
+    accuracies[i] <- mean(pred_classes == test_data[[target_col]])
+  }
+  
+  return(mean(accuracies))
+}
+
+calculate_group_accuracy_simple <- function(models, test_data, target_col, group_col) {
+  groups <- unique(test_data[[group_col]])
+  results <- list()
+  
+  for(group in groups) {
+    group_data <- test_data[test_data[[group_col]] == group, ]
+    acc <- calculate_mean_accuracy(models, group_data, target_col)
+    results[[group]] <- acc
+  }
+  
+  return(results)
+}
+
+
+
+grouped_metrics_bnns <- function(model, test_data, target_col = "y", group_col = "G", threshold = 0.5) {
+  # Predizioni
+  preds <- predict(model, newdata = test_data)
+  mean_preds <- rowMeans(preds)
+  predicted_class <- ifelse(mean_preds >= threshold, 1, 0)
+  
+  y_true <- test_data[[target_col]]
+  groups <- test_data[[group_col]]
+  
+  results_df <- data.frame(
+    group = groups,
+    true = y_true,
+    pred = predicted_class
+  )
+  
+  group_levels <- unique(results_df$group)
+  metrics_list <- list()
+  
+  for (g in group_levels) {
+    group_data <- subset(results_df, group == g)
+    
+    TP <- sum(group_data$pred == 1 & group_data$true == 1)
+    TN <- sum(group_data$pred == 0 & group_data$true == 0)
+    FP <- sum(group_data$pred == 1 & group_data$true == 0)
+    FN <- sum(group_data$pred == 0 & group_data$true == 1)
+    
+    accuracy <- (TP + TN) / (TP + TN + FP + FN)
+    TPR <- ifelse((TP + FN) > 0, TP / (TP + FN), NA)
+    TNR <- ifelse((TN + FP) > 0, TN / (TN + FP), NA)
+    FPR <- ifelse((FP + TN) > 0, FP / (FP + TN), NA)
+    FNR <- ifelse((FN + TP) > 0, FN / (FN + TP), NA)
+    
+    metrics_list[[as.character(g)]] <- list(
+      accuracy = accuracy,
+      TPR = TPR,
+      TNR = TNR,
+      FPR = FPR,
+      FNR = FNR
+    )
+  }
+  
+  # Calcolo delle fairness metrics tra due gruppi
+  if (length(group_levels) == 2) {
+    g0 <- as.character(group_levels[1])
+    g1 <- as.character(group_levels[2])
+    
+    # P(Ŷ=1|G=g)
+    P_hat1_g0 <- mean(results_df$pred[results_df$group == g0] == 1)
+    P_hat1_g1 <- mean(results_df$pred[results_df$group == g1] == 1)
+    
+    # P(Ŷ=0|Y=1,G=g)
+    P_y1_hat0_g0 <- mean(results_df$pred[results_df$group == g0 & results_df$true == 1] == 0)
+    P_y1_hat0_g1 <- mean(results_df$pred[results_df$group == g1 & results_df$true == 1] == 0)
+    
+    # P(Ŷ=1|Y=1,G=g)
+    P_y1_hat1_g0 <- mean(results_df$pred[results_df$group == g0 & results_df$true == 1] == 1)
+    P_y1_hat1_g1 <- mean(results_df$pred[results_df$group == g1 & results_df$true == 1] == 1)
+    
+    fairness_metrics <- list(
+      Statistical_Parity = P_hat1_g0 / P_hat1_g1,
+      Equal_Opportunity = P_y1_hat0_g0 / P_y1_hat0_g1,
+      Equalized_Odds = P_y1_hat1_g0 / P_y1_hat1_g1,
+      Equal_Accuracy = metrics_list[[g0]]$accuracy / metrics_list[[g1]]$accuracy
+    )
+    
+    metrics_list$fairness <- fairness_metrics
+  }
+  
+  return(metrics_list)
+}
+
+####
+
 
 #### RATEI TP, TN, FP, FN
 calculate_ensemble_metrics_by_group <- function(models, test_data, target_col, group_col = "G",
@@ -53,7 +198,6 @@ calculate_ensemble_metrics_by_group <- function(models, test_data, target_col, g
   groups <- droplevels(as.factor(test_data[[group_col]]))
   unique_groups <- unique(groups)
   
-  # Funzione interna per calcolare metriche di classificazione
   get_metrics <- function(y, pred) {
     tp <- sum(y == positive_class & pred == positive_class)
     tn <- sum(y != positive_class & pred != positive_class)
@@ -72,7 +216,6 @@ calculate_ensemble_metrics_by_group <- function(models, test_data, target_col, g
     )
   }
   
-  # Calcola metriche per ogni modello e gruppo
   individual_metrics <- lapply(seq_along(models), function(i) {
     pred <- ifelse(predict(models[[i]], test_data) > threshold, 2, 1)
     do.call(rbind, lapply(unique_groups, function(g) {
@@ -84,17 +227,14 @@ calculate_ensemble_metrics_by_group <- function(models, test_data, target_col, g
   individual_df <- do.call(rbind, individual_metrics)
   mean_metrics <- aggregate(. ~ group, data = individual_df[, -1], FUN = mean)
   
-  # Predizione aggregata dell'ensemble
   pred_mat <- do.call(cbind, lapply(models, function(m) ifelse(predict(m, test_data) > threshold, 2, 1)))
   ensemble_pred <- ifelse(rowMeans(pred_mat) > threshold, 2, 1)
   
-  # Metriche dell'ensemble per ciascun gruppo
   ensemble_metrics <- do.call(rbind, lapply(unique_groups, function(g) {
     m <- groups == g
     cbind(group = g, get_metrics(y_true[m], ensemble_pred[m]))
   }))
   
-  # Ordine dei livelli per calcolo fairness
   if (is.null(levels_order)) {
     levels_order <- sort(as.character(unique(groups)))
     stopifnot(length(levels_order) == 2)
@@ -104,7 +244,6 @@ calculate_ensemble_metrics_by_group <- function(models, test_data, target_col, g
   minority <- ens_lookup[[levels_order[1]]]
   majority <- ens_lookup[[levels_order[2]]]
   
-  # Calcolo delle misure di fairness
   fairness_measures <- data.frame(
     minority = levels_order[1], majority = levels_order[2],
     F_SP = ((minority$tp + minority$fp) / sum(minority[c("tp", "tn", "fp", "fn")])) /
@@ -145,7 +284,8 @@ calculate_uncertainties <- function(ensemble_models, test_data) {
   # Ottieni predizioni probabilistiche da ogni modello
   for(m in 1:M) {
     preds_mc <- predict(ensemble_models[[m]], newdata = test_data)
-    preds <- rowMeans(preds_mc)  # Media su tutti i campioni MC
+    # Media su tutti i campioni MC
+    preds <- rowMeans(preds_mc)
     P_matrix[, m] <- preds
   }
   
@@ -156,7 +296,7 @@ calculate_uncertainties <- function(ensemble_models, test_data) {
   epistemic <- numeric(n_samples)
   for(i in 1:n_samples) {
     diff <- P_matrix[i,] - P_bar[i]
-    epistemic[i] <- mean(diff^2)
+    epistemic[i] <- mean(diff^2)  # (P_m - P̄)^T * (P_m - P̄)
   }
   
   # ALEATORIC UNCERTAINTY (Eq. 7 seconda parte)  
@@ -164,7 +304,8 @@ calculate_uncertainties <- function(ensemble_models, test_data) {
   for(i in 1:n_samples) {
     for(m in 1:M) {
       p_m <- P_matrix[i,m]
-      aleatoric[i] <- aleatoric[i] + (p_m - p_m^2)  # Varianza binaria
+      # diag(P_m) - P_m^T * P_m per classificazione binaria
+      aleatoric[i] <- aleatoric[i] + (p_m - p_m^2)
     }
     aleatoric[i] <- aleatoric[i] / M
   }
@@ -178,7 +319,6 @@ calculate_uncertainties <- function(ensemble_models, test_data) {
     predictive = predictive
   ))
 }
-
 
 # Funzione per calcolare media uncertainties per gruppo
 calculate_group_uncertainties <- function(uncertainties, sensitive_attr) {

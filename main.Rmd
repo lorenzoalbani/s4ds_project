@@ -8,15 +8,15 @@ output: html_document
 ```{r setup}
 # CAricamento funzioni e dati
 source("utils.R")
-source("data/syntethic_datasets/03_synthetic_data.R")
+source("data/syntethic_datasets/01_synthetic_data.R")
 ```
 
 ```{r}
 # Preparo train/test split
 set.seed(42)
-train_indices <- sample(nrow(sd3_data), 0.8 * nrow(sd3_data))
-train_data <- sd3_data[train_indices, ]
-test_data <- sd3_data[-train_indices, ]
+train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
+train_data <- sd1_data[train_indices, ]
+test_data <- sd1_data[-train_indices, ]
 ```
 
 ```{r}
@@ -26,7 +26,7 @@ test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto
 test_data$y <- as.numeric(test_data$y)
 ```
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # Training
 ensemble_models <- create_uncertainty_ensemble(train_data, 'y')
 ```
