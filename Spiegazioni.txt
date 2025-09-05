@@ -1,9 +1,0 @@
-https://chatgpt.com/share/68b6ecc9-f984-8012-894b-24c5a596d3dc
-SPIEGAZIONE TEORICA create_uncertainty_ensemble
-
-La funzione create_uncertainty_ensemble crea i nostri modelli, ma ogni modello creato è diverso.
-
-Trasformazioni di train e test:
-Visto che usiamo la libreria bnns(), che a sua volta usa Stan come architettura, "Y" viene rinominato "y"
-e la target viene trasformata prima in character poi in numerica. Stan accetta solo target numeriche, ma
-la trasformazione diretta avrebbe trasformato le classi in 1 e 2, quindi prima la trasformiamo in character.
