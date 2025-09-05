@@ -6,13 +6,14 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
   models <- list()
   
   # Crea formula dinamicamente
-  formula_str <- paste(target_col, "~ .")
+  formula_str <- paste(target_col, "~ .") # Su quale feature si allena e quale target
   
   for(i in 1:n_models) {
     cat("Training model", i, "of", n_models, "\n")
     
     # Bootstrap sampling (per aleatoric)
-    boot_indices <- sample(nrow(data), nrow(data), replace = TRUE)
+    # il secondo argomento è per l'esattezza delle righe
+    boot_indices <- sample(nrow(data), nrow(data), replace = TRUE) 
     boot_data <- data[boot_indices, ]
     
     # Aggiungi noise ai parametri (per epistemic) 
@@ -28,14 +29,14 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
       data = boot_data,
       hidden_layers = hidden_layers,
       epochs = epochs,
-      prior_pi = 0.5,         # π = 0.5
+      prior_pi = 0.5,         # π = 0.5 probabilità che prensa una delle due distr dei pesi
       prior_sigma1 = 0,       # σ₁ = 0
       prior_sigma2 = 6,       # σ₂ = 6
-      lambda = 2000,          # λ = 2000
+      lambda = 2000,          # λ = 2000 regolarizzazione
       init_mu = 0,            # μ = 0
       init_sigma = 1,         # σ = 1
       early_stopping = TRUE,
-      verbose = TRUE,
+      verbose = TRUE,         # messaggi di log
       seed = i
     )
     
@@ -47,87 +48,112 @@ create_uncertainty_ensemble <- function(data, target_col, n_models = 10) {
 
 #### RATEI TP, TN, FP, FN
 calculate_ensemble_metrics_by_group <- function(models, test_data, target_col, group_col = "G",
-                                                threshold = 1.5, levels_order = NULL, positive_class = 2) {
-  stopifnot(length(models) > 0)
+                                              threshold = 1.5, positive_class = 2) {
+  
+  # Estrai le variabili principali
   y_true <- test_data[[target_col]]
-  groups <- droplevels(as.factor(test_data[[group_col]]))
+  groups <- test_data[[group_col]]
   unique_groups <- unique(groups)
   
-  # Funzione interna per calcolare metriche di classificazione
-  get_metrics <- function(y, pred) {
-    tp <- sum(y == positive_class & pred == positive_class)
-    tn <- sum(y != positive_class & pred != positive_class)
-    fp <- sum(y != positive_class & pred == positive_class)
-    fn <- sum(y == positive_class & pred != positive_class)
+  # Lista per salvare i risultati
+  results <- list()
+  
+  # ===== 1. PREDIZIONI ENSEMBLE =====
+  # Raccogli tutte le predizioni (gestendo BNN con campioni MC)
+  all_predictions <- matrix(0, nrow = nrow(test_data), ncol = length(models))
+  
+  for (i in 1:length(models)) {
+    preds_mc <- predict(models[[i]], test_data)
+    # Media su tutti i campioni MC per ottenere le probabilità finali
+    probabilities <- rowMeans(preds_mc)
+    all_predictions[, i] <- ifelse(probabilities > threshold, 2, 1)
+  }
+  
+  # Media delle predizioni (voto di maggioranza)
+  ensemble_pred <- ifelse(rowMeans(all_predictions) > threshold, 2, 1)
+  
+  # ===== 2. METRICHE ENSEMBLE PER GRUPPO =====
+  ensemble_results <- data.frame()
+  
+  for (group in unique_groups) {
+    # Seleziona solo i dati di questo gruppo
+    group_mask <- groups == group
+    y_group <- y_true[group_mask]
+    pred_group <- ensemble_pred[group_mask]
+    
+    # Calcola TP, TN, FP, FN per ensemble
+    tp <- sum(y_group == positive_class & pred_group == positive_class)
+    tn <- sum(y_group != positive_class & pred_group != positive_class)
+    fp <- sum(y_group != positive_class & pred_group == positive_class)
+    fn <- sum(y_group == positive_class & pred_group != positive_class)
+    
+    # Calcola metriche ensemble
     total <- tp + tn + fp + fn
-    data.frame(
-      accuracy = (tp + tn) / total,
-      tpr = if (tp + fn > 0) tp / (tp + fn) else 0,
-      tnr = if (tn + fp > 0) tn / (tn + fp) else 0,
-      fpr = if (fp + tn > 0) fp / (fp + tn) else 0,
-      fnr = if (fn + tp > 0) fn / (fn + tp) else 0,
-      ppv = if (tp + fp > 0) tp / (tp + fp) else 0,
-      npv = if (tn + fn > 0) tn / (tn + fn) else 0,
-      tp = tp, tn = tn, fp = fp, fn = fn
+    accuracy <- (tp + tn) / total
+    tpr <- if (tp + fn > 0) tp / (tp + fn) else 0
+    tnr <- if (tn + fp > 0) tn / (tn + fp) else 0
+    fpr <- if (fp + tn > 0) fp / (fp + tn) else 0
+    fnr <- if (fn + tp > 0) fn / (fn + tp) else 0
+    ppv <- if (tp + fp > 0) tp / (tp + fp) else 0
+    npv <- if (tn + fn > 0) tn / (tn + fn) else 0
+    
+    ensemble_row <- data.frame(
+      group = group,
+      accuracy = accuracy,
+      tpr = tpr,
+      tnr = tnr,
+      fpr = fpr,
+      fnr = fnr,
+      ppv = ppv,
+      npv = npv,
+      tp = tp,
+      tn = tn,
+      fp = fp,
+      fn = fn
     )
+    
+    ensemble_results <- rbind(ensemble_results, ensemble_row)
   }
   
-  # Calcola metriche per ogni modello e gruppo
-  individual_metrics <- lapply(seq_along(models), function(i) {
-    pred <- ifelse(predict(models[[i]], test_data) > threshold, 2, 1)
-    do.call(rbind, lapply(unique_groups, function(g) {
-      m <- groups == g
-      cbind(model = i, group = g, get_metrics(y_true[m], pred[m]))
-    }))
-  })
+  # ===== 3. CALCOLO FAIRNESS (assumendo 2 gruppi) =====
+  fairness_results <- NULL
   
-  individual_df <- do.call(rbind, individual_metrics)
-  mean_metrics <- aggregate(. ~ group, data = individual_df[, -1], FUN = mean)
-  
-  # Predizione aggregata dell'ensemble
-  pred_mat <- do.call(cbind, lapply(models, function(m) ifelse(predict(m, test_data) > threshold, 2, 1)))
-  ensemble_pred <- ifelse(rowMeans(pred_mat) > threshold, 2, 1)
-  
-  # Metriche dell'ensemble per ciascun gruppo
-  ensemble_metrics <- do.call(rbind, lapply(unique_groups, function(g) {
-    m <- groups == g
-    cbind(group = g, get_metrics(y_true[m], ensemble_pred[m]))
-  }))
-  
-  # Ordine dei livelli per calcolo fairness
-  if (is.null(levels_order)) {
-    levels_order <- sort(as.character(unique(groups)))
-    stopifnot(length(levels_order) == 2)
-  }
-  
-  ens_lookup <- split(ensemble_metrics, ensemble_metrics$group)
-  minority <- ens_lookup[[levels_order[1]]]
-  majority <- ens_lookup[[levels_order[2]]]
-  
-  # Calcolo delle misure di fairness
-  fairness_measures <- data.frame(
-    minority = levels_order[1], majority = levels_order[2],
-    F_SP = ((minority$tp + minority$fp) / sum(minority[c("tp", "tn", "fp", "fn")])) /
-      ((majority$tp + majority$fp) / sum(majority[c("tp", "tn", "fp", "fn")])),
-    F_EOpp = minority$fnr / majority$fnr,
-    F_EOdd = minority$tpr / majority$tpr,
-    F_EAcc = minority$accuracy / majority$accuracy,
-    TPR_ratio = minority$tpr / majority$tpr,
-    TNR_ratio = minority$tnr / majority$tnr,
-    FPR_ratio = minority$fpr / majority$fpr,
-    FNR_ratio = minority$fnr / majority$fnr
-  )
-  
-  list(
-    individual_metrics_by_group = individual_df,
-    mean_individual_metrics_by_group = mean_metrics,
-    ensemble_metrics_by_group = ensemble_metrics,
-    fairness_measures = fairness_measures,
-    confusion_matrices = list(
-      minority = minority[c("tp", "tn", "fp", "fn")],
-      majority = majority[c("tp", "tn", "fp", "fn")]
+  if (length(unique_groups) == 2) {
+    # Ordina i gruppi
+    groups_sorted <- sort(unique_groups)
+    minority_group <- groups_sorted[1]
+    majority_group <- groups_sorted[2]
+    
+    # Estrai metriche per i due gruppi
+    minority_metrics <- ensemble_results[ensemble_results$group == minority_group, ]
+    majority_metrics <- ensemble_results[ensemble_results$group == majority_group, ]
+    
+    # Calcola total per denominatori
+    minority_total <- minority_metrics$tp + minority_metrics$tn + minority_metrics$fp + minority_metrics$fn
+    majority_total <- majority_metrics$tp + majority_metrics$tn + majority_metrics$fp + majority_metrics$fn
+    
+    # Calcola fairness measures
+    fairness_results <- data.frame(
+      minority = minority_group,
+      majority = majority_group,
+      F_SP = ((minority_metrics$tp + minority_metrics$fp) / minority_total) / 
+        ((majority_metrics$tp + majority_metrics$fp) / majority_total),
+      F_EOpp = minority_metrics$fnr / majority_metrics$fnr,
+      F_EOdd = minority_metrics$tpr / majority_metrics$tpr,
+      F_EAcc = minority_metrics$accuracy / majority_metrics$accuracy,
+      TPR_ratio = minority_metrics$tpr / majority_metrics$tpr,
+      TNR_ratio = minority_metrics$tnr / majority_metrics$tnr,
+      FPR_ratio = minority_metrics$fpr / majority_metrics$fpr,
+      FNR_ratio = minority_metrics$fnr / majority_metrics$fnr
     )
-  )
+  }
+
+  
+  # ===== RESTITUISCI I RISULTATI =====
+  return(list(
+    ensemble_metrics_by_group = ensemble_results,
+    fairness_measures = fairness_results
+  ))
 }
 
 ####
@@ -145,7 +171,7 @@ calculate_uncertainties <- function(ensemble_models, test_data) {
   # Ottieni predizioni probabilistiche da ogni modello
   for(m in 1:M) {
     preds_mc <- predict(ensemble_models[[m]], newdata = test_data)
-    preds <- rowMeans(preds_mc)  # Media su tutti i campioni MC
+    preds <- rowMeans(preds_mc)  # Media su tutti i campioni dei modelli di MC
     P_matrix[, m] <- preds
   }
   
@@ -197,7 +223,7 @@ calculate_group_uncertainties <- function(uncertainties, sensitive_attr) {
   
   for (group in groups) {
     # Indici dei campioni di questo gruppo
-    group_indices <- which(test_data[[sensitive_attr]] == group)
+    group_indices <- which(test_data[[sensitive_attr]] == group) # which() in R restituisce gli indici
     
     # Calcola medie delle uncertainties per questo gruppo
     mean_epistemic <- mean(uncertainties$epistemic[group_indices])
