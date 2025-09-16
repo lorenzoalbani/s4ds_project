@@ -5,20 +5,6 @@
 
 **R-based replication** of the experiments from the paper "Uncertainty as a Fairness Measure", exploring how uncertainty quantification can provide deeper insights into fairness and bias detection in machine learning models beyond traditional point-based metrics.
 
-## 📋 Table of Contents
-
-- [Overview](#overview)
-- [Motivation](#motivation)
-- [Types of Uncertainty](#types-of-uncertainty)
-- [Methodology](#methodology)
-- [Experiments](#experiments)
-- [Results](#results)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [Authors](#authors)
-- [License](#license)
-
 ## 🎯 Overview
 
 This project is a **replication study** of the original paper "Uncertainty as a Fairness Measure", implemented in R. The original work demonstrated that traditional fairness evaluation in machine learning relies heavily on point-based metrics, which may overlook important sources of bias hidden in model uncertainty.
