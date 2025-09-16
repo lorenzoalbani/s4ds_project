@@ -1,45 +1,46 @@
 ---
-title: "Untitled"
-author: "Lollo"
+title: "R,Uncertainty Fairness "
+author: "Albani Lorenzo, Ascione Luigi, Del Rosso Filippo"
 date: "2025-09-01"
 output: html_document
 ---
 
 ```{r setup}
-# CAricamento funzioni e dati
-source("utils.R")
-source("data/syntethic_datasets/01_synthetic_data.R")
+# Caricamento funzioni e dati
+source("utils.R") #Importare funzioni 
+source("data/syntethic_datasets/01_synthetic_data.R") #Importare dati
 ```
 
 ```{r}
 # Preparo train/test split
 set.seed(42)
-train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data))
-train_data <- sd1_data[train_indices, ]
-test_data <- sd1_data[-train_indices, ]
+train_indices <- sample(nrow(sd1_data), 0.8 * nrow(sd1_data)) #80% indici di righe casuali di sd1_data senza reinserimento
+train_data <- sd1_data[train_indices, ]  #righe estratte da sd1
+test_data <- sd1_data[-train_indices, ] # - per passare i restanti
 ```
 
-```{r}
+```{r} 
 train_data <- train_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan richiede cosi
-train_data$y <- as.numeric(train_data$y)
+train_data$y <- as.numeric(train_data$y) # perchè nostra variabile è booleana e diventano 1/2
 test_data <- test_data %>% rename(y = Y) # rinominato y piccolo perche pacchetto stan
 test_data$y <- as.numeric(test_data$y)
 ```
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 # Training
-ensemble_models <- create_uncertainty_ensemble(train_data, 'y')
+ensemble_models <- create_uncertainty_ensemble(train_data, 'y') # creare ensemble di modelli BNN che conterranno predizioni y e incertezze
 ```
 
 ```{r}
 # BNN results
 results <- calculate_ensemble_metrics_by_group(
-  models = ensemble_models,
-  test_data = test_data,
-  target_col = "y",
-  group_col = "G", 
+  # calcola performance dei gruppi
+  models = ensemble_models, # ensemble allenato
+  test_data = test_data, # dati di test
+  target_col = "y", # target
+  group_col = "G", # gruppo
   # levels_order = c("0", "1"),
-  positive_class = 2
+  positive_class = 2 # G=1 come positiva
 )
 
 # Access results
@@ -48,8 +49,9 @@ results$fairness_measures          # All fairness ratios
 ```
 
 ```{r}
-# Calcolo uncertainty
+# Calcolo uncertainty per ogni predizione
 uncertainties <- calculate_uncertainties(ensemble_models, test_data)
+# Uncertainty aaggregata per ciascun gruppo
 group_uncertainties <- calculate_group_uncertainties(uncertainties, sensitive_attr = "G")
 print(group_uncertainties)
 
