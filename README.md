@@ -73,31 +73,15 @@ Each model produces a probability P_m of predicting the positive class, where un
 - **Bayesian Neural Networks**: Treat weights as distributions rather than point estimates
 - **Bootstrap Sampling**: Generate diverse training datasets for aleatoric uncertainty estimation
 
-## 🎯 Key Takeaways from This Replication
-
-- **Replication Challenges**: Exact reproduction of uncertainty-based fairness results is highly sensitive to implementation details
-- **Methodological Insights**: The general framework is sound, but requires careful architecture design and hyperparameter tuning
-- **Tool Limitations**: Simpler R implementations may not capture the nuanced uncertainty patterns achieved with specialized Python libraries
-- **Value of Replication**: This study highlights the importance of reproducibility research in ML fairness
-
-## 🤝 Contributing to This Replication
-
-We welcome contributions to improve this replication study:
-
-1. **Enhanced BNN Implementation**: Develop more sophisticated R-based BNN architectures
-2. **Real-world Analysis**: Extend analysis to Adult and COMPAS datasets  
-3. **Cross-language Validation**: Compare R vs Python implementations directly
-4. **Visualization**: Add uncertainty distribution plots by demographic group
-
 ## 📖 Original Paper Reference
 
 **"Uncertainty as a Fairness Measure"** - This replication study is based on the original paper which introduced the concept of using predictive, aleatoric, and epistemic uncertainty to reveal hidden biases in machine learning models beyond traditional point-based fairness metrics.
 
 ## 👥 Replication Team
 
-- **Albani Lorenzo** - R implementation and methodology adaptation
-- **Ascione Luigi** - Experimental design and results analysis  
-- **Del Rosso Filippo** - Synthetic data recreation and validation
+- **Albani Lorenzo**
+- **Ascione Luigi**
+- **Del Rosso Filippo**
 
 *Statistics for Data Science - A.A. 2024/2025*  
 *Replication Study Project*
@@ -110,7 +94,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Original paper authors for the theoretical framework
 - R community for the `bnns` package and Stan integration
-- Course instructors for guidance and feedback
 
 ## 📊 Replication Results
 
